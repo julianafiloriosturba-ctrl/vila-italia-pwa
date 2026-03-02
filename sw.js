@@ -1,0 +1,77 @@
+// Service Worker para Vila Itália PWA
+const CACHE_NAME = 'vila-italia-v1';
+const urlsToCache = [
+  '/',
+  '/index.html',
+  '/home.html',
+  '/how-to-enter.html',
+  '/wifi.html',
+  '/schedules.html',
+  '/cleaning.html',
+  '/trattoria.html',
+  '/tours.html',
+  '/restaurants.html',
+  '/supermarkets.html',
+  '/rules.html',
+  '/manifest.json'
+];
+
+// Instalação do Service Worker
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then((cache) => {
+        console.log('Cache opened');
+        return cache.addAll(urlsToCache);
+      })
+  );
+});
+
+// Ativação do Service Worker
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (cacheName !== CACHE_NAME) {
+            console.log('Deleting old cache:', cacheName);
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    })
+  );
+});
+
+// Interceptação de requisições
+self.addEventListener('fetch', (event) => {
+  event.respondWith(
+    caches.match(event.request)
+      .then((response) => {
+        // Cache hit - retorna resposta do cache
+        if (response) {
+          return response;
+        }
+        
+        // Clone a requisição
+        const fetchRequest = event.request.clone();
+        
+        return fetch(fetchRequest).then((response) => {
+          // Verifica se resposta é válida
+          if (!response || response.status !== 200 || response.type !== 'basic') {
+            return response;
+          }
+          
+          // Clone a resposta
+          const responseToCache = response.clone();
+          
+          caches.open(CACHE_NAME)
+            .then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
+          
+          return response;
+        });
+      })
+  );
+});
